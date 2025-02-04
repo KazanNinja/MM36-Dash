@@ -19,19 +19,41 @@ TaskHandle_t CAN_Task;
 TaskHandle_t Neopixel_Task;
 TaskHandle_t Blink;
 
+//Define 7-segment display segments and their pins
+
+
 //Defines global rpm, clt, gear, etc integers for CAN data
 int rpm;
 int clt;
 int gear;
 int neutral;
+int pit;
 int driverSwitch3;
 int driverSwitch4;
+
+//Defines shfit light rpm switching points
+int shiftRpm1 = 9500;
+int shiftRpm2 = 10000;
+int shiftRpm3 = 10500;
+int shiftRpm4 = 11000;
+int shiftRpm5 = 11500;
+int shiftRpm6 = 12000;
+int shiftRpm7 = 12500;
+
+//Define flashing light bools
+int flashingRPM = 13000;
+bool SHIFTNOWDINGDONG = false;
 
 //Value at which the "Cold" and "Hot" lights are turned on, in Celsius
 //Value at which light starts flashing
 int coolantCold = 70;
 int coolantHot = 105;
 int coolantFlash = 120;
+
+//Millis for flashing lights
+int previousMillis = 0;
+const long overheatMillis = 500;
+const long pitMillis = 750;
 
 //OBD TX frame setup
 void sendObdFrame(uint8_t obdId) {
@@ -69,6 +91,7 @@ void setup() {
   pinMode(10, OUTPUT);
   pinMode(38, OUTPUT);
 
+  //Turns gear indicator off
   digitalWrite(4,HIGH);
   digitalWrite(5,HIGH);
   digitalWrite(6,HIGH);
@@ -78,7 +101,7 @@ void setup() {
   digitalWrite(10,HIGH);
   digitalWrite(38,HIGH);
 
-  //Setting up task for CAN bus stuffz
+  //Setting up task for CAN bus stuffz, grabs data and stuff
   xTaskCreatePinnedToCore(
     CAN_Task_Code, //Function to implement the task
     "CAN Task",    //Name of the task
@@ -89,16 +112,27 @@ void setup() {
     0              //Core where the task should run
   );            
 
-  //Settings up task for Neopixel lighting
+  //Settings up task for Shift Light lighting
   xTaskCreatePinnedToCore(
-    Neopixel_Task_Code, //Function to implement the task
-    "Neopixel Task",    //Name of the task
+    Light_Task_Code, //Function to implement the task
+    "Light Task",    //Name of the task
     10000,              //Stack size in words
     NULL,               //Task input parameter
     1,                  //Priority of the task
     &Neopixel_Task,     //Task handle
     1                   //Core where the task should run
-  );       
+  );
+
+  //Settings up task for Shift Light lighting
+  // xTaskCreatePinnedToCore(
+  //   Gear_Indicator_Code, //Function to implement the task
+  //   "Gear Indicator Task",    //Name of the task
+  //   10000,              //Stack size in words
+  //   NULL,               //Task input parameter
+  //   1,                  //Priority of the task
+  //   &Neopixel_Task,     //Task handle
+  //   1                   //Core where the task should run
+  // );
 
   //CAN setup
   ESP32Can.setPins(CAN_TX, CAN_RX);
@@ -127,7 +161,7 @@ void CAN_Task_Code(void *parameter) {
     uint32_t currentStamp = millis();
 
     //Onboard button
-    int buttonState = digitalRead(35);
+    //int buttonState = digitalRead(35);
 
     //CAN TX-ing
     // if(currentStamp - lastStamp > 50) {   // sends OBD2 request every second
@@ -136,13 +170,13 @@ void CAN_Task_Code(void *parameter) {
     // }
     
     //Onboard button LED driving, button pressed (0, pulled up) turn the LED on
-    if(buttonState == 0){
-      digitalWrite(14, HIGH);
-    }
-    else
-    {
-      digitalWrite(14, LOW);
-    }
+    // if(buttonState == 0){
+    //   digitalWrite(14, HIGH);
+    // }
+    // else
+    // {
+    //   digitalWrite(14, LOW);
+    // }
 
     //Checks if there are any frames to read
     if(ESP32Can.readFrame(rxFrame, 1000)) {
@@ -164,76 +198,122 @@ void CAN_Task_Code(void *parameter) {
         gear = rxFrame.data[6] & 0b00001111;
       }
 
+      //Pit Switch CAN Frame
+      if(rxFrame.identifier == 0x64E){
+        neutral = rxFrame.data[3] & 0b01000000;
+      }
+
       //Neutral Switch CAN Frame
       if(rxFrame.identifier == 0x64E){
-        driverSwitch3 = rxFrame.data[3] & 0b01000000;
+        pit = rxFrame.data[3] & 0b00000001;
       }
     }
   }
 }
     
-void Neopixel_Task_Code(void *parameter2) {
+void Light_Task_Code(void *parameter2) {
 
   while(true){
+
+    unsigned long currentMillis = millis();
+    
 
     //Clears any existing pixels 
     pixels.clear();
 
-    //Gear position logic
-    if(gear == 14){
-      pixels.setPixelColor(0, pixels.Color(30,30,30));
-    }
-    else if(gear == 1){
-      pixels.setPixelColor(0, pixels.Color(255,0,0));
-    }
-    else if(gear == 2){
-      pixels.setPixelColor(0, pixels.Color(255,165,0));
-    }
-    else if(gear == 3){
-      pixels.setPixelColor(0, pixels.Color(255,255,0));
-    }
-    else if(gear == 4){
-      pixels.setPixelColor(0, pixels.Color(0, 255, 0));
-    }
-    else if(gear == 5){
-      pixels.setPixelColor(0, pixels.Color(0,0,255));
-    }
-    else if(gear == 6){
-      pixels.setPixelColor(0, pixels.Color(255,0,255));
-    }
-    else{
-      //Do nothing?
-    }
-
     //Coolant lighting Neopixel
     if(clt < coolantCold){
-      pixels.setPixelColor(1, pixels.Color(0,0,100));
+      pixels.setPixelColor(1, pixels.Color(0,0,255));
     }
     else if(clt >= coolantCold && clt <= coolantHot){
-      pixels.setPixelColor(1, pixels.Color(0,100,0));
-    }
-    else if(clt > coolantHot){
-      pixels.setPixelColor(1, pixels.Color(100,0,0));
-    }
-    else{
       pixels.setPixelColor(1, pixels.Color(0,0,0));
     }
+    else if(clt > coolantHot){
+      pixels.setPixelColor(1, pixels.Color(255,0,0));
+    }
+    else if(clt > coolantFlash){
 
-    //RPM LED fade thing
-    // int mappedRPM = map(rpm, 3000, 7000, 0, 255);
-    // if(mappedRPM < 0){
-    //   mappedRPM = 0;
-    // }
-    // if(mappedRPM > 255){
-    //   mappedRPM = 255;
-    // }
-    // pixels.setPixelColor(0, mappedRPM, mappedRPM, mappedRPM);
+      if(currentMillis - previousMillis >= overheatMillis){
+        previousMillis = currentMillis;
+        if(pixels.getPixelColor(1) == pixels.Color(0,0,0)){
+          pixels.setPixelColor(1, pixels.Color(255,0,0));
+        }
+        else{
+          pixels.setPixelColor(1, pixels.Color(0,0,0));
+        }
+      }
+    }
+    else{
+      pixels.setPixelColor(1, pixels.Color(255,255,255));
+    }
 
-    //Pit Switch Input
-    // if(driverSwitch3 == 64){
-    //   pixels.setPixelColor(0, pixels.Color(255,255,255));
-    // }
+    //Shift lights When Pit Limiter is Off
+    //First Light
+    if(pit == 0){
+      if(rpm >= shiftRpm1){
+        pixels.setPixelColor(2, pixels.Color(0,255,0));
+      }
+      else{
+        pixels.setPixelColor(2, pixels.Color(0,0,0));
+      }
 
+      //Second Light
+      if(rpm >= shiftRpm2){
+        pixels.setPixelColor(3, pixels.Color(0,255,0));
+      }
+      else{
+        pixels.setPixelColor(3, pixels.Color(0,0,0));
+      }
+
+      //Third Light
+      if(rpm >= shiftRpm3){
+        pixels.setPixelColor(4, pixels.Color(0,255,0));
+      }
+      else{
+        pixels.setPixelColor(4, pixels.Color(0,0,0));
+      }
+
+      //Fourth Light
+      if(rpm >= shiftRpm4){
+        pixels.setPixelColor(5, pixels.Color(255,0,0));
+      }
+      else{
+        pixels.setPixelColor(5, pixels.Color(0,0,0));
+      }
+
+      //Fifth Light
+      if(rpm >= shiftRpm5){
+        pixels.setPixelColor(6, pixels.Color(255,0,0));
+      }
+      else{
+        pixels.setPixelColor(6, pixels.Color(0,0,0));
+      }
+
+      //Sixth Light
+      if(rpm >= shiftRpm6){
+        pixels.setPixelColor(7, pixels.Color(255,0,255));
+      }
+      else{
+        pixels.setPixelColor(7, pixels.Color(0,0,0));
+      }
+
+      //Seventh Light
+      if(rpm >= shiftRpm7){
+        pixels.setPixelColor(8, pixels.Color(255,0,255));
+      }
+      else{
+        pixels.setPixelColor(8, pixels.Color(0,0,0));
+      }
+
+      //Sets shfit flashing bool to true when rpm passes flashingRPM variable
+      if(rpm > flashingRPM){
+        SHIFTNOWDINGDONG = true;
+      }
+      else{
+        SHIFTNOWDINGDONG = false;
+      }
+    }
+    
     //Sets pixel output, 1ms delay
     pixels.show();
     vTaskDelay(0.1);
