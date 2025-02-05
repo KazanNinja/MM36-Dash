@@ -16,11 +16,18 @@ CanFrame rxFrame;
 
 //Defining Tasks
 TaskHandle_t CAN_Task;
-TaskHandle_t Neopixel_Task;
-TaskHandle_t Blink;
+TaskHandle_t Light_Task;
+TaskHandle_t Gear_Task;
 
 //Define 7-segment display segments and their pins
-
+const int a = 38;
+const int b = 10;
+const int c = 5;
+const int d = 7;
+const int e = 6;
+const int f = 9;
+const int g = 8;
+const int DP = 10;
 
 //Defines global rpm, clt, gear, etc integers for CAN data
 int rpm;
@@ -119,20 +126,20 @@ void setup() {
     10000,              //Stack size in words
     NULL,               //Task input parameter
     1,                  //Priority of the task
-    &Neopixel_Task,     //Task handle
+    &Light_Task,     //Task handle
     1                   //Core where the task should run
   );
 
   //Settings up task for Shift Light lighting
-  // xTaskCreatePinnedToCore(
-  //   Gear_Indicator_Code, //Function to implement the task
-  //   "Gear Indicator Task",    //Name of the task
-  //   10000,              //Stack size in words
-  //   NULL,               //Task input parameter
-  //   1,                  //Priority of the task
-  //   &Neopixel_Task,     //Task handle
-  //   1                   //Core where the task should run
-  // );
+  xTaskCreatePinnedToCore(
+    Gear_Indicator_Code, //Function to implement the task
+    "Gear Indicator Task",    //Name of the task
+    10000,              //Stack size in words
+    NULL,               //Task input parameter
+    1,                  //Priority of the task
+    &Gear_Task,     //Task handle
+    1                   //Core where the task should run
+  );
 
   //CAN setup
   ESP32Can.setPins(CAN_TX, CAN_RX);
@@ -216,7 +223,6 @@ void Light_Task_Code(void *parameter2) {
   while(true){
 
     unsigned long currentMillis = millis();
-    
 
     //Clears any existing pixels 
     pixels.clear();
@@ -228,7 +234,7 @@ void Light_Task_Code(void *parameter2) {
     else if(clt >= coolantCold && clt <= coolantHot){
       pixels.setPixelColor(1, pixels.Color(0,0,0));
     }
-    else if(clt > coolantHot){
+    else if(clt >= coolantHot){
       pixels.setPixelColor(1, pixels.Color(255,0,0));
     }
     else if(clt > coolantFlash){
@@ -314,9 +320,102 @@ void Light_Task_Code(void *parameter2) {
       }
     }
     
+    //Neutral light logic
+    if(neutral ==1){
+      pixels.setPixelColor(9, pixels.Color(255,255,255));
+    }
+    else{
+      pixels.setPixelColor(9, pixels.Color(0,0,0));
+    }
+
     //Sets pixel output, 1ms delay
     pixels.show();
     vTaskDelay(0.1);
-
   }
+}
+
+void Gear_Indicator_Code(void *parameter3){
+
+    if(gear == 0){
+      digitalWrite(a, LOW);
+      digitalWrite(b, LOW);
+      digitalWrite(c, LOW);
+      digitalWrite(d, HIGH);
+      digitalWrite(e, LOW);
+      digitalWrite(f, LOW);
+      digitalWrite(g, HIGH);
+      digitalWrite(DP, HIGH);
+    }
+    else if(gear == 1){
+      digitalWrite(a, HIGH);
+      digitalWrite(b, LOW);
+      digitalWrite(c, LOW);
+      digitalWrite(d, HIGH);
+      digitalWrite(e, HIGH);
+      digitalWrite(f, HIGH);
+      digitalWrite(g, HIGH);
+      digitalWrite(DP, HIGH);
+    }
+    else if(gear == 2){
+      digitalWrite(a, LOW);
+      digitalWrite(b, LOW);
+      digitalWrite(c, HIGH);
+      digitalWrite(d, LOW);
+      digitalWrite(e, LOW);
+      digitalWrite(f, HIGH);
+      digitalWrite(g, LOW);
+      digitalWrite(DP, HIGH);
+    }
+    else if(gear == 3){
+      digitalWrite(a, LOW);
+      digitalWrite(b, LOW);
+      digitalWrite(c, LOW);
+      digitalWrite(d, LOW);
+      digitalWrite(e, HIGH);
+      digitalWrite(f, HIGH);
+      digitalWrite(g, LOW);
+      digitalWrite(DP, HIGH);
+    }
+    else if(gear == 4){
+      digitalWrite(a, HIGH);
+      digitalWrite(b, LOW);
+      digitalWrite(c, LOW);
+      digitalWrite(d, HIGH);
+      digitalWrite(e, HIGH);
+      digitalWrite(f, HIGH);
+      digitalWrite(g, LOW);
+      digitalWrite(DP, HIGH);
+    }
+    else if(gear == 5){
+      digitalWrite(a, LOW);
+      digitalWrite(b, HIGH);
+      digitalWrite(c, LOW);
+      digitalWrite(d, LOW);
+      digitalWrite(e, HIGH);
+      digitalWrite(f, LOW);
+      digitalWrite(g, LOW);
+      digitalWrite(DP, HIGH);
+    }
+    else if(gear == 6){
+      digitalWrite(a, LOW);
+      digitalWrite(b, HIGH);
+      digitalWrite(c, LOW);
+      digitalWrite(d, LOW);
+      digitalWrite(e, LOW);
+      digitalWrite(f, LOW);
+      digitalWrite(g, LOW);
+      digitalWrite(DP, HIGH);
+    }
+    else{
+      digitalWrite(a, LOW);
+      digitalWrite(b, HIGH);
+      digitalWrite(c, HIGH);
+      digitalWrite(d, LOW);
+      digitalWrite(e, LOW);
+      digitalWrite(f, LOW);
+      digitalWrite(g, LOW);
+      digitalWrite(DP, LOW);
+    }
+
+  vTaskDelay(0.1);
 }
