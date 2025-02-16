@@ -91,6 +91,9 @@ void setup() {
   //Begin Serial comms
   Serial.begin(115200);
 
+  //Slight Delay for stuff
+  delay(200);
+
   //Testing Values
   rpm = 8000;
   clt=80;
@@ -171,7 +174,8 @@ void setup() {
   if(ESP32Can.begin()) {
       Serial.println("CAN bus started!");
       digitalWrite(StatusLED, HIGH);
-      pixels.setPixelColor(8, pixels.Color(0,255,0));
+      pixels.setPixelColor(8, pixels.Color(255,255,255));
+      pixels.setPixelColor(0, pixels.Color(255,255,255));
       pixels.show();
       delay(75);
       digitalWrite(StatusLED, LOW);
@@ -180,6 +184,7 @@ void setup() {
       delay(75);
       digitalWrite(StatusLED, LOW);
       pixels.setPixelColor(8, pixels.Color(0,0,0));
+      pixels.setPixelColor(0, pixels.Color(0,0,0));
       pixels.show();
   } else {
       Serial.println("CAN bus failed!");
