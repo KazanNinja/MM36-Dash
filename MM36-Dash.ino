@@ -27,8 +27,8 @@ Adafruit_NeoPixel pixels(NUMPIXELS, DATA_PIN, NEO_GRB + NEO_KHZ800);
 #define GearG 8
 #define GearDP 4
 
-//CAN Recieving and Transmitting frame object
-//Sets sending frame ID
+//CAN Recieving frame
+//Sets Transmitting frame ID
 CanFrame rxFrame;
 int frameID = 0x7F6;
 
@@ -107,14 +107,14 @@ void setup() {
   pinMode(GearDP, OUTPUT);
 
   //Turns gear indicator off (INVERTED RIGHT NOW, USING COMMONG CATHODE RN)
-  digitalWrite(GearA,LOW);
-  digitalWrite(GearB,LOW);
-  digitalWrite(GearC, LOW);
-  digitalWrite(GearD, LOW);
-  digitalWrite(GearE, LOW);
-  digitalWrite(GearF, LOW);
-  digitalWrite(GearG, LOW);
-  digitalWrite(GearDP, LOW);
+  // digitalWrite(GearA,LOW);
+  // digitalWrite(GearB,LOW);
+  // digitalWrite(GearC, LOW);
+  // digitalWrite(GearD, LOW);
+  // digitalWrite(GearE, LOW);
+  // digitalWrite(GearF, LOW);
+  // digitalWrite(GearG, LOW);
+  // digitalWrite(GearDP, LOW);
 
   //Setting up task for CAN bus stuffz, grabs data and stuff
   xTaskCreatePinnedToCore(
@@ -225,7 +225,7 @@ void CAN_Task_Code(void *parameter) {
   }
 }
     
-void Light_Task_Code(void *parameter2) {
+void Light_Task_Code(void *parameter) {
 
   while(true){
 
@@ -418,6 +418,71 @@ void Button_Task_Code(void *parameter){
     vTaskDelay(0.1);
   }
 }
+
+void Gear_Indicator_Code(void *parameter){
+  while(true){
+
+    //Neutral
+    if(gear == 0){
+      digitalWrite(GearA, LOW);
+      digitalWrite(GearB, LOW);
+      digitalWrite(GearC, LOW);
+      digitalWrite(GearE, LOW);
+      digitalWrite(GearF, LOW);
+    }
+    else if(gear == 1){
+      digitalWrite(GearB, LOW);
+      digitalWrite(GearC, LOW);
+    }
+    else if(gear == 2){
+      digitalWrite(GearA, LOW);
+      digitalWrite(GearB, LOW);
+      digitalWrite(GearD, LOW);
+      digitalWrite(GearE, LOW);
+      digitalWrite(GearG, LOW);
+    }
+    else if(gear == 3){
+      digitalWrite(GearA, LOW);
+      digitalWrite(GearB, LOW);
+      digitalWrite(GearC, LOW);
+      digitalWrite(GearD, LOW);
+      digitalWrite(GearG, LOW);
+    }
+    else if(gear == 4){
+      digitalWrite(GearB, LOW);
+      digitalWrite(GearC, LOW);
+      digitalWrite(GearF, LOW);
+      digitalWrite(GearG, LOW);
+    }
+    else if(gear == 5){
+      digitalWrite(GearA, LOW);
+      digitalWrite(GearC, LOW);
+      digitalWrite(GearD, LOW);
+      digitalWrite(GearF, LOW);
+      digitalWrite(GearG, LOW);
+    }
+    else if(gear == 6){
+      digitalWrite(GearA, LOW);
+      digitalWrite(GearC, LOW);
+      digitalWrite(GearD, LOW);
+      digitalWrite(GearE, LOW);
+      digitalWrite(GearF, LOW);
+      digitalWrite(GearG, LOW);
+    }
+    else{
+      digitalWrite(GearA, LOW);
+      digitalWrite(GearB, LOW);
+      digitalWrite(GearC, LOW);
+      digitalWrite(GearD, LOW);
+      digitalWrite(GearE, LOW);
+      digitalWrite(GearF, LOW);
+      digitalWrite(GearDP, LOW);
+    }
+
+    vTaskDelay(0.1);
+  }
+}
+
 
 void SendButtonCAN() {
 	CanFrame obdFrame = { 0 };
