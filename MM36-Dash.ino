@@ -7,11 +7,11 @@
 #define NUMPIXELS 9
 Adafruit_NeoPixel pixels(NUMPIXELS, DATA_PIN, NEO_GRB + NEO_KHZ800);
 
-// CAN TX-RX Pins
+//CAN TX-RX Pins
 #define CAN_RX 33
 #define CAN_TX 34
 
-// Button Pins
+//Button Pins
 #define Button1Pin 13
 #define Button2Pin 12
 #define Button3Pin 35
@@ -26,6 +26,9 @@ Adafruit_NeoPixel pixels(NUMPIXELS, DATA_PIN, NEO_GRB + NEO_KHZ800);
 #define GearF 9
 #define GearG 8
 #define GearDP 4
+
+//Status light pin
+#define StatusLED 47
 
 //CAN Recieving frame
 //Sets Transmitting frame ID
@@ -79,15 +82,23 @@ const long overheatMillis = 200;
 const long pitMillis = 350;
 const long shiftMillis = 125;
 
+//Gear "debounce" thing to ignore the -2 Motec value in between shifts
+//Sets last gear position var and ignore duration
+const long gearIgnoreMillis = 400;
+long gear14Timer = 0;
+
 void setup() {
   //Begin Serial comms
   Serial.begin(115200);
 
   //Testing Values
   rpm = 8000;
-  clt=30;
+  clt=80;
   pit = 0;
   neutral = 0;
+
+  //Sets StatusLED pin to output
+  pinMode(StatusLED, OUTPUT);
 
   //Dash button pinModes
   //Sets pull-up because buttons are pulldown when closed
@@ -105,16 +116,6 @@ void setup() {
   pinMode(GearF, OUTPUT);
   pinMode(GearG, OUTPUT);
   pinMode(GearDP, OUTPUT);
-
-  //Turns gear indicator off (INVERTED RIGHT NOW, USING COMMONG CATHODE RN)
-  // digitalWrite(GearA,LOW);
-  // digitalWrite(GearB,LOW);
-  // digitalWrite(GearC, LOW);
-  // digitalWrite(GearD, LOW);
-  // digitalWrite(GearE, LOW);
-  // digitalWrite(GearF, LOW);
-  // digitalWrite(GearG, LOW);
-  // digitalWrite(GearDP, LOW);
 
   //Setting up task for CAN bus stuffz, grabs data and stuff
   xTaskCreatePinnedToCore(
@@ -169,8 +170,16 @@ void setup() {
   // You can also just use .begin()..
   if(ESP32Can.begin()) {
       Serial.println("CAN bus started!");
+      digitalWrite(StatusLED, HIGH);
+      delay(75);
+      digitalWrite(StatusLED, LOW);
+      delay(75);
+      digitalWrite(StatusLED, HIGH);
+      delay(75);
+      digitalWrite(StatusLED, LOW);
   } else {
       Serial.println("CAN bus failed!");
+      digitalWrite(StatusLED, LOW);
   }
 }
 
@@ -181,6 +190,9 @@ void loop(){
 void CAN_Task_Code(void *parameter) {
 
   while(true){
+    
+    //Sets StatusLED off until CAN talk begins
+    digitalWrite(StatusLED, LOW);
 
     //Shitasses
     static uint32_t lastStamp = 0;
@@ -194,6 +206,9 @@ void CAN_Task_Code(void *parameter) {
 
     //Checks if there are any frames to read
     if(ESP32Can.readFrame(rxFrame, 1000)) {
+
+      //Turns statusLED on during rx'ing
+      digitalWrite(StatusLED, HIGH);
 
       //Engine Speed CAN Frame
       if(rxFrame.identifier == 0x640) {  
@@ -386,7 +401,7 @@ void Light_Task_Code(void *parameter) {
       
     //Testing stuff
     if(rpm < 14000){
-      rpm = rpm +2;
+      rpm = rpm + 4;
     }
     else{
       rpm = 8000;
@@ -399,8 +414,7 @@ void Light_Task_Code(void *parameter) {
       clt = 20;
     }
 
-    rpm = 10000;
-    clt =  70;
+    rpm = 8000;
     //Set neopixels to set values
     //Delay to yield to other tasks
     pixels.show();
@@ -410,11 +424,14 @@ void Light_Task_Code(void *parameter) {
 
 void Button_Task_Code(void *parameter){
   while(true){
+
+    //Grabs digital states of the 4 expansion buttons
     button1State = digitalRead(Button1Pin);
     button2State = digitalRead(Button2Pin);
     button3State = digitalRead(Button3Pin);
     button4State = digitalRead(Button4Pin);
 
+    //Delay to yield to other tasks
     vTaskDelay(0.1);
   }
 }
@@ -422,18 +439,22 @@ void Button_Task_Code(void *parameter){
 void Gear_Indicator_Code(void *parameter){
   while(true){
 
+    unsigned long currentMillis = millis();
+
     //Neutral
-    if(gear == 0){
+    if(gear == 0 || neutral == 1){
       digitalWrite(GearA, LOW);
       digitalWrite(GearB, LOW);
       digitalWrite(GearC, LOW);
       digitalWrite(GearE, LOW);
       digitalWrite(GearF, LOW);
     }
+    //First Gear
     else if(gear == 1){
       digitalWrite(GearB, LOW);
       digitalWrite(GearC, LOW);
     }
+    //Second Gear
     else if(gear == 2){
       digitalWrite(GearA, LOW);
       digitalWrite(GearB, LOW);
@@ -441,6 +462,7 @@ void Gear_Indicator_Code(void *parameter){
       digitalWrite(GearE, LOW);
       digitalWrite(GearG, LOW);
     }
+    //Third Gear
     else if(gear == 3){
       digitalWrite(GearA, LOW);
       digitalWrite(GearB, LOW);
@@ -448,12 +470,14 @@ void Gear_Indicator_Code(void *parameter){
       digitalWrite(GearD, LOW);
       digitalWrite(GearG, LOW);
     }
+    //Fourth Gear
     else if(gear == 4){
       digitalWrite(GearB, LOW);
       digitalWrite(GearC, LOW);
       digitalWrite(GearF, LOW);
       digitalWrite(GearG, LOW);
     }
+    //Fifth Gear
     else if(gear == 5){
       digitalWrite(GearA, LOW);
       digitalWrite(GearC, LOW);
@@ -461,6 +485,7 @@ void Gear_Indicator_Code(void *parameter){
       digitalWrite(GearF, LOW);
       digitalWrite(GearG, LOW);
     }
+    //Sixth Gear
     else if(gear == 6){
       digitalWrite(GearA, LOW);
       digitalWrite(GearC, LOW);
@@ -469,21 +494,40 @@ void Gear_Indicator_Code(void *parameter){
       digitalWrite(GearF, LOW);
       digitalWrite(GearG, LOW);
     }
+
+    //If no known gears are seen, display an E with the DP
+    //Uses millis and stuff to ignore the time period in between gear shifts
+    //As the Motec estimates the gear position based on wheel speed, rpm, gear ratio, etc
+    //If window of time is exceeded, segment will display the E and DP
+    if(gear == 14){
+
+      //Starts timer thing if gear position is 14
+      if(gear14Timer == 0){
+        gear14Timer = currentMillis;
+      }
+    
+      //If timer and currentmillis exceed the timer interval gearIgnoreMillis
+      //Display the E and DP
+      else if(currentMillis - gear14Timer >= gearIgnoreMillis){    
+        digitalWrite(GearA, LOW);
+        digitalWrite(GearD, LOW);
+        digitalWrite(GearE, LOW);
+        digitalWrite(GearF, LOW);
+        digitalWrite(GearG, LOW);
+        digitalWrite(GearDP, LOW);
+      }
+    }
     else{
-      digitalWrite(GearA, LOW);
-      digitalWrite(GearB, LOW);
-      digitalWrite(GearC, LOW);
-      digitalWrite(GearD, LOW);
-      digitalWrite(GearE, LOW);
-      digitalWrite(GearF, LOW);
-      digitalWrite(GearDP, LOW);
+      //Resets gear 14 timer when its not in gear 14
+      gear14Timer = 0;
     }
 
+    //Delay to yield to other tasks
     vTaskDelay(0.1);
   }
 }
 
-
+//CAN Sending stuff for the dash buttons
 void SendButtonCAN() {
 	CanFrame obdFrame = { 0 };
 	obdFrame.identifier = frameID;
