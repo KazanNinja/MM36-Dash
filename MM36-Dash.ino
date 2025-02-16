@@ -80,7 +80,7 @@ int previousMillis2 = 0;
 int previousMillis3 = 0;
 const long overheatMillis = 200;
 const long pitMillis = 350;
-const long shiftMillis = 125;
+const long shiftMillis = 100;
 
 //Gear "debounce" thing to ignore the -2 Motec value in between shifts
 //Sets last gear position var and ignore duration
@@ -91,14 +91,11 @@ void setup() {
   //Begin Serial comms
   Serial.begin(115200);
 
+  //Sets clt to -69 to prevent light coming on prior to connection with Motec
+  clt = -69;
+
   //Slight Delay for stuff
   delay(200);
-
-  //Testing Values
-  rpm = 8000;
-  clt=80;
-  pit = 0;
-  neutral = 0;
 
   //Sets StatusLED pin to output
   pinMode(StatusLED, OUTPUT);
@@ -190,6 +187,9 @@ void setup() {
       Serial.println("CAN bus failed!");
       digitalWrite(StatusLED, LOW);
   }
+
+  //Clears pixels
+  pixels.clear();
 }
 
 void loop(){
@@ -224,11 +224,13 @@ void CAN_Task_Code(void *parameter) {
         byte rpmLow = rxFrame.data[0];
         byte rpmHigh = rxFrame.data[1];
         rpm = (rpmLow << 8) + rpmHigh;
+        Serial.println(rpm);
       }
     
       //Goolant CAN Frame
       if(rxFrame.identifier == 0x649){
         clt = rxFrame.data[0] - 40;
+        Serial.println(clt);
       }
 
       //Gear position CAN Frame
@@ -238,12 +240,14 @@ void CAN_Task_Code(void *parameter) {
 
       //Pit Switch CAN Frame
       if(rxFrame.identifier == 0x64E){
-        neutral = rxFrame.data[3] & 0b01000000;
+        pit = rxFrame.data[3] & 0b01000000;
+        Serial.println(pit);
       }
 
       //Neutral Switch CAN Frame
       if(rxFrame.identifier == 0x64E){
-        pit = rxFrame.data[3] & 0b00000001;
+        neutral = rxFrame.data[3] & 0b00000001;
+        Serial.println(neutral);
       }
     }
   }
@@ -258,7 +262,7 @@ void Light_Task_Code(void *parameter) {
     //Coolant lighting Neopixel
     //First three "simple" coolant states
     //Cold, operating temp, hot
-    if(clt < coolantCold){
+    if(clt < coolantCold && clt != -69){
       pixels.setPixelColor(0, pixels.Color(0,0,255));
     }
     else if(clt >= coolantCold && clt <= coolantHot){
@@ -287,7 +291,7 @@ void Light_Task_Code(void *parameter) {
     if(pit == 0){
 
       if(rpm >= shiftRpm1 && rpm < flashingRPM){
-        pixels.setPixelColor(1, pixels.Color(0,100,0));
+        pixels.setPixelColor(1, pixels.Color(0,255,0));
       }
       else if(rpm <= shiftRpm1){
         pixels.setPixelColor(1, pixels.Color(0,0,0));
@@ -295,7 +299,7 @@ void Light_Task_Code(void *parameter) {
 
       //Second Light
       if(rpm >= shiftRpm2 && rpm < flashingRPM){
-        pixels.setPixelColor(2, pixels.Color(0,100,0));
+        pixels.setPixelColor(2, pixels.Color(0,255,0));
       }
       else if(rpm <= shiftRpm2){
         pixels.setPixelColor(2, pixels.Color(0,0,0));
@@ -303,7 +307,7 @@ void Light_Task_Code(void *parameter) {
 
       //Third Light
       if(rpm >= shiftRpm3 && rpm < flashingRPM){
-        pixels.setPixelColor(3, pixels.Color(0,100,0));
+        pixels.setPixelColor(3, pixels.Color(0,255,0));
       }
       else if(rpm <= shiftRpm3){
         pixels.setPixelColor(3, pixels.Color(0,0,0));
@@ -311,7 +315,7 @@ void Light_Task_Code(void *parameter) {
 
       //Fourth Light
       if(rpm >= shiftRpm4 && rpm < flashingRPM){
-        pixels.setPixelColor(4, pixels.Color(100,100,0));
+        pixels.setPixelColor(4, pixels.Color(255,255,0));
       }
       else if(rpm <= shiftRpm4){
         pixels.setPixelColor(4, pixels.Color(0,0,0));
@@ -319,7 +323,7 @@ void Light_Task_Code(void *parameter) {
 
       //Fifth Light
       if(rpm >= shiftRpm5 && rpm < flashingRPM){
-        pixels.setPixelColor(5, pixels.Color(100,100,0));
+        pixels.setPixelColor(5, pixels.Color(255,255,0));
       }
       else if(rpm <= shiftRpm5){
         pixels.setPixelColor(5, pixels.Color(0,0,0));
@@ -327,7 +331,7 @@ void Light_Task_Code(void *parameter) {
 
       //Sixth Light
       if(rpm >= shiftRpm6 && rpm < flashingRPM){
-        pixels.setPixelColor(6, pixels.Color(100,0,0));
+        pixels.setPixelColor(6, pixels.Color(255,0,0));
       }
       else if(rpm <= shiftRpm6){
         pixels.setPixelColor(6, pixels.Color(0,0,0));
@@ -335,7 +339,7 @@ void Light_Task_Code(void *parameter) {
 
       //Seventh Light
       if(rpm >= shiftRpm7 && rpm < flashingRPM){
-        pixels.setPixelColor(7, pixels.Color(100,0,0));
+        pixels.setPixelColor(7, pixels.Color(255,0,0));
       }
       else if(rpm <= shiftRpm7){
         pixels.setPixelColor(7, pixels.Color(0,0,0));
@@ -360,13 +364,13 @@ void Light_Task_Code(void *parameter) {
         else if(!rpmFlashState && (currentMillis - previousMillis3 >= shiftMillis)){
           previousMillis3 = currentMillis;
           rpmFlashState = true;
-          pixels.setPixelColor(1, pixels.Color(100,0,100));
-          pixels.setPixelColor(2, pixels.Color(100,0,100));
-          pixels.setPixelColor(3, pixels.Color(100,0,100));
-          pixels.setPixelColor(4, pixels.Color(100,0,100));
-          pixels.setPixelColor(5, pixels.Color(100,0,100));
-          pixels.setPixelColor(6, pixels.Color(100,0,100));
-          pixels.setPixelColor(7, pixels.Color(100,0,100));
+          pixels.setPixelColor(1, pixels.Color(255,0,255));
+          pixels.setPixelColor(2, pixels.Color(255,0,255));
+          pixels.setPixelColor(3, pixels.Color(255,0,255));
+          pixels.setPixelColor(4, pixels.Color(255,0,255));
+          pixels.setPixelColor(5, pixels.Color(255,0,255));
+          pixels.setPixelColor(6, pixels.Color(255,0,255));
+          pixels.setPixelColor(7, pixels.Color(255,0,255));
           //Porple drank
         }
       }
@@ -375,28 +379,28 @@ void Light_Task_Code(void *parameter) {
     //Pit Limiter Lights
     //Alternates between center thingies if pit switch is on
     //Same millis stuff going on up above
-    if(pit == 1){
+    if(pit == 64){
       if(pitFlashState && (currentMillis-previousMillis2 >= pitMillis)){
         previousMillis2 = currentMillis;
         pitFlashState = false;
         pixels.setPixelColor(1, pixels.Color(0,0,0));
-        pixels.setPixelColor(2, pixels.Color(125,100,0));
+        pixels.setPixelColor(2, pixels.Color(255,180,0));
         pixels.setPixelColor(3, pixels.Color(0,0,0));
-        pixels.setPixelColor(4, pixels.Color(125,100,0));
+        pixels.setPixelColor(4, pixels.Color(255,180,0));
         pixels.setPixelColor(5, pixels.Color(0,0,0));
-        pixels.setPixelColor(6, pixels.Color(125,100,0));
+        pixels.setPixelColor(6, pixels.Color(255,180,0));
         pixels.setPixelColor(7, pixels.Color(0,0,0));
       }
       if(!pitFlashState && (currentMillis - previousMillis2 >= pitMillis)){
         previousMillis2 = currentMillis;
         pitFlashState = true;
-        pixels.setPixelColor(1, pixels.Color(125,100,0));
+        pixels.setPixelColor(1, pixels.Color(255,180,0));
         pixels.setPixelColor(2, pixels.Color(0,0,0));
-        pixels.setPixelColor(3, pixels.Color(125,100,0));
+        pixels.setPixelColor(3, pixels.Color(255,180,0));
         pixels.setPixelColor(4, pixels.Color(0,0,0));
-        pixels.setPixelColor(5, pixels.Color(125,100,0));
+        pixels.setPixelColor(5, pixels.Color(255,180,0));
         pixels.setPixelColor(6, pixels.Color(0,0,0));
-        pixels.setPixelColor(7, pixels.Color(125,100,0));
+        pixels.setPixelColor(7, pixels.Color(255,180,0));
       }
     }
 
@@ -408,22 +412,6 @@ void Light_Task_Code(void *parameter) {
       pixels.setPixelColor(8, pixels.Color(0,0,0));
     }
       
-    //Testing stuff
-    if(rpm < 14000){
-      rpm = rpm + 4;
-    }
-    else{
-      rpm = 8000;
-    }
-
-    if(clt < 240){
-      clt = clt + 0.05;
-    }
-    else{
-      clt = 20;
-    }
-
-    rpm = 8000;
     //Set neopixels to set values
     //Delay to yield to other tasks
     pixels.show();
