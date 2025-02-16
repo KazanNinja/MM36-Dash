@@ -171,12 +171,16 @@ void setup() {
   if(ESP32Can.begin()) {
       Serial.println("CAN bus started!");
       digitalWrite(StatusLED, HIGH);
+      pixels.setPixelColor(8, pixels.Color(0,255,0));
+      pixels.show();
       delay(75);
       digitalWrite(StatusLED, LOW);
       delay(75);
       digitalWrite(StatusLED, HIGH);
       delay(75);
       digitalWrite(StatusLED, LOW);
+      pixels.setPixelColor(8, pixels.Color(0,0,0));
+      pixels.show();
   } else {
       Serial.println("CAN bus failed!");
       digitalWrite(StatusLED, LOW);
