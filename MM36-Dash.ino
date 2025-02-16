@@ -24,7 +24,7 @@ TaskHandle_t Blink;
 
 //Defines global rpm, clt, gear, etc integers for CAN data
 int rpm;
-int clt;
+double clt;
 int gear;
 int neutral;
 int pit;
@@ -42,19 +42,23 @@ int shiftRpm7 = 12500;
 
 //Define flashing light bools
 int flashingRPM = 13000;
-bool SHIFTNOWDINGDONG = false;
+bool rpmFlashState = false;
 
 //Value at which the "Cold" and "Hot" lights are turned on, in Celsius
 //Value at which light starts flashing
 int coolantCold = 70;
 int coolantHot = 105;
-int coolantFlash = 120;
-bool cltFlash = false;
+int coolantFlash = 115;
+bool cltFlashState = false;
 
 //Millis for flashing lights
 int previousMillis = 0;
-const long overheatMillis = 500;
-const long pitMillis = 750;
+int previousMillis2 = 0;
+int previousMillis3 = 0;
+const long overheatMillis = 200;
+const long pitMillis = 350;
+const long shiftMillis = 100;
+bool pitFlashState = false;
 
 //OBD TX frame setup
 void sendObdFrame(uint8_t obdId) {
@@ -78,9 +82,9 @@ void setup() {
   //Begin Serial comms
   Serial.begin(115200);
 
-
   rpm = 8000;
-  clt=125;
+  clt=130;
+  pit = 0;
   //Dash button pinModes
   pinMode(12, INPUT_PULLUP);
   pinMode(13, INPUT_PULLUP);
@@ -220,120 +224,164 @@ void Light_Task_Code(void *parameter2) {
   while(true){
 
     unsigned long currentMillis = millis();
-    
-    //Clears any existing pixels 
-    pixels.clear();
 
     //Coolant lighting Neopixel
     if(clt < coolantCold){
       pixels.setPixelColor(0, pixels.Color(0,0,255));
     }
-    else if(clt >= coolantCold && clt <= coolantHot && clt ){
+    else if(clt >= coolantCold && clt <= coolantHot){
       pixels.setPixelColor(0, pixels.Color(0,0,0));
     }
     else if(clt > coolantHot && clt < coolantFlash){
       pixels.setPixelColor(0, pixels.Color(255,0,0));
     }
-    if(clt > coolantFlash){
-      Serial.println("reaching0");
-      Serial.println(currentMillis);
-      Serial.println(previousMillis);
-      if((currentMillis - previousMillis) >= overheatMillis){
-        Serial.println("reaching1");
+    else if(clt > coolantFlash && cltFlashState && (currentMillis-previousMillis >= overheatMillis)){
         previousMillis = currentMillis;
-        if(cltFlash == false){
-          Serial.println("reaching2");
-          pixels.setPixelColor(0, pixels.Color(255,0,0));
-          cltFlash = true;
-        }
-        else{
-          Serial.println("reaching3");
-          pixels.setPixelColor(0, pixels.Color(0,0,0));
-          cltFlash = false;
-        }
-      }
+        cltFlashState = false;
+        pixels.setPixelColor(0, pixels.Color(0,0,0));
+        //pixels.show();
     }
-    else{
-      pixels.setPixelColor(0, pixels.Color(255,255,255));
+    else if(clt > coolantFlash && !cltFlashState && (currentMillis - previousMillis >= overheatMillis)){
+        previousMillis = currentMillis;
+        cltFlashState = true;
+        pixels.setPixelColor(0, pixels.Color(255,0,0));
+        //pixels.show();
     }
+    // else{
+    //   pixels.setPixelColor(0, pixels.Color(255,255,255));
+    // }
 
     //Shift lights When Pit Limiter is Off
     //First Light
     if(pit == 0){
-      if(rpm >= shiftRpm1){
-        pixels.setPixelColor(1, pixels.Color(0,255,0));
+
+      if(rpm >= shiftRpm1 && rpm < flashingRPM){
+        pixels.setPixelColor(1, pixels.Color(0,100,0));
       }
-      else{
+      else if(rpm <= shiftRpm1){
         pixels.setPixelColor(1, pixels.Color(0,0,0));
       }
 
       //Second Light
-      if(rpm >= shiftRpm2){
-        pixels.setPixelColor(2, pixels.Color(0,255,0));
+      if(rpm >= shiftRpm2 && rpm < flashingRPM){
+        pixels.setPixelColor(2, pixels.Color(0,100,0));
       }
-      else{
+      else if(rpm <= shiftRpm2){
         pixels.setPixelColor(2, pixels.Color(0,0,0));
       }
 
       //Third Light
-      if(rpm >= shiftRpm3){
-        pixels.setPixelColor(3, pixels.Color(0,255,0));
+      if(rpm >= shiftRpm3 && rpm < flashingRPM){
+        pixels.setPixelColor(3, pixels.Color(0,100,0));
       }
-      else{
+      else if(rpm <= shiftRpm3){
         pixels.setPixelColor(3, pixels.Color(0,0,0));
       }
 
       //Fourth Light
-      if(rpm >= shiftRpm4){
-        pixels.setPixelColor(4, pixels.Color(255,0,0));
+      if(rpm >= shiftRpm4 && rpm < flashingRPM){
+        pixels.setPixelColor(4, pixels.Color(100,100,0));
       }
-      else{
+      else if(rpm <= shiftRpm4){
         pixels.setPixelColor(4, pixels.Color(0,0,0));
       }
 
       //Fifth Light
-      if(rpm >= shiftRpm5){
-        pixels.setPixelColor(5, pixels.Color(255,0,0));
+      if(rpm >= shiftRpm5 && rpm < flashingRPM){
+        pixels.setPixelColor(5, pixels.Color(100,100,0));
       }
-      else{
+      else if(rpm <= shiftRpm5){
         pixels.setPixelColor(5, pixels.Color(0,0,0));
       }
 
       //Sixth Light
-      if(rpm >= shiftRpm6){
-        pixels.setPixelColor(6, pixels.Color(255,0,255));
+      if(rpm >= shiftRpm6 && rpm < flashingRPM){
+        pixels.setPixelColor(6, pixels.Color(100,0,0));
       }
-      else{
+      else if(rpm <= shiftRpm6){
         pixels.setPixelColor(6, pixels.Color(0,0,0));
       }
 
       //Seventh Light
-      if(rpm >= shiftRpm7){
-        pixels.setPixelColor(7, pixels.Color(255,0,255));
+      if(rpm >= shiftRpm7 && rpm < flashingRPM){
+        pixels.setPixelColor(7, pixels.Color(100,0,0));
       }
-      else{
+      else if(rpm <= shiftRpm7){
         pixels.setPixelColor(7, pixels.Color(0,0,0));
       }
 
-      //Sets shfit flashing bool to true when rpm passes flashingRPM variable
       if(rpm > flashingRPM){
-        SHIFTNOWDINGDONG = true;
-      }
-      else{
-        SHIFTNOWDINGDONG = false;
+        if(rpmFlashState && (currentMillis-previousMillis3 >= shiftMillis)){
+          previousMillis3 = currentMillis;
+          rpmFlashState = false;
+          pixels.setPixelColor(1, pixels.Color(0,0,0));
+          pixels.setPixelColor(2, pixels.Color(0,0,0));
+          pixels.setPixelColor(3, pixels.Color(0,0,0));
+          pixels.setPixelColor(4, pixels.Color(0,0,0));
+          pixels.setPixelColor(5, pixels.Color(0,0,0));
+          pixels.setPixelColor(6, pixels.Color(0,0,0));
+          pixels.setPixelColor(7, pixels.Color(0,0,0));
+
+          //pixels.show();
+        }
+        else if(!rpmFlashState && (currentMillis - previousMillis3 >= shiftMillis)){
+          previousMillis3 = currentMillis;
+          rpmFlashState = true;
+          pixels.setPixelColor(1, pixels.Color(100,0,100));
+          pixels.setPixelColor(2, pixels.Color(100,0,100));
+          pixels.setPixelColor(3, pixels.Color(100,0,100));
+          pixels.setPixelColor(4, pixels.Color(100,0,100));
+          pixels.setPixelColor(5, pixels.Color(100,0,100));
+          pixels.setPixelColor(6, pixels.Color(100,0,100));
+          pixels.setPixelColor(7, pixels.Color(100,0,100));
+          //pixels.show();
+        }
       }
     }
 
-    // if(rpm < 14000){
-    //   rpm++;
-    // }
-    // else{
-    //   rpm = 8000;
-    // }
-    //Sets pixel output, 1ms delay
+    if(pit == 1){
+      if(pitFlashState && (currentMillis-previousMillis2 >= pitMillis)){
+        previousMillis2 = currentMillis;
+        pitFlashState = false;
+        pixels.setPixelColor(1, pixels.Color(0,0,0));
+        pixels.setPixelColor(2, pixels.Color(125,100,0));
+        pixels.setPixelColor(3, pixels.Color(0,0,0));
+        pixels.setPixelColor(4, pixels.Color(125,100,0));
+        pixels.setPixelColor(5, pixels.Color(0,0,0));
+        pixels.setPixelColor(6, pixels.Color(125,100,0));
+        pixels.setPixelColor(7, pixels.Color(0,0,0));
+        //pixels.show();
+    }
+      if(!pitFlashState && (currentMillis - previousMillis2 >= pitMillis)){
+        previousMillis2 = currentMillis;
+        pitFlashState = true;
+        pixels.setPixelColor(1, pixels.Color(125,100,0));
+        pixels.setPixelColor(2, pixels.Color(0,0,0));
+        pixels.setPixelColor(3, pixels.Color(125,100,0));
+        pixels.setPixelColor(4, pixels.Color(0,0,0));
+        pixels.setPixelColor(5, pixels.Color(125,100,0));
+        pixels.setPixelColor(6, pixels.Color(0,0,0));
+        pixels.setPixelColor(7, pixels.Color(125,100,0));
+        //pixels.show();
+      }
+    }
+      
+
+    if(rpm < 14000){
+      rpm = rpm +2;
+    }
+    else{
+      rpm = 8000;
+    }
+
+    if(clt < 240){
+      clt = clt + 0.05;
+    }
+    else{
+      clt = 20;
+    }
+    
     pixels.show();
-    //Serial.println(rpm);
-    //Serial.println(clt);
     vTaskDelay(0.1);
 
   }
