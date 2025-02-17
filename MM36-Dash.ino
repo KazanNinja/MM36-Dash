@@ -18,14 +18,14 @@ Adafruit_NeoPixel pixels(NUMPIXELS, DATA_PIN, NEO_GRB + NEO_KHZ800);
 #define Button4Pin 17
 
 //Define 7-segment display segments and their pins on the ESP
-#define GearA 38
-#define GearB 10
-#define GearC 5
-#define GearD 7
-#define GearE 6
-#define GearF 9
-#define GearG 8
-#define GearDP 4
+#define GearA 7
+#define GearB 6
+#define GearC 9
+#define GearD 38
+#define GearE 10
+#define GearF 5
+#define GearG 4
+#define GearDP 8
 
 //Status light pin
 #define StatusLED 47
@@ -84,7 +84,7 @@ const long shiftMillis = 100;
 
 //Gear "debounce" thing to ignore the -2 Motec value in between shifts
 //Sets last gear position var and ignore duration
-const long gearIgnoreMillis = 400;
+const long gearIgnoreMillis = 700;
 long gear14Timer = 0;
 
 void setup() {
@@ -92,10 +92,9 @@ void setup() {
   Serial.begin(115200);
 
   //Sets clt to -69 to prevent light coming on prior to connection with Motec
+  //Sets gear position to 14 prior to connection with Motec
   clt = -69;
-
-  //Slight Delay for stuff
-  delay(200);
+  gear = 14;
 
   //Sets StatusLED pin to output
   pinMode(StatusLED, OUTPUT);
@@ -116,6 +115,19 @@ void setup() {
   pinMode(GearF, OUTPUT);
   pinMode(GearG, OUTPUT);
   pinMode(GearDP, OUTPUT);
+
+  //Clears gear indicator
+  digitalWrite(GearA, HIGH);
+  digitalWrite(GearB, HIGH);
+  digitalWrite(GearC, HIGH);
+  digitalWrite(GearD, HIGH);      
+  digitalWrite(GearE, HIGH);
+  digitalWrite(GearF, HIGH);
+  digitalWrite(GearG, HIGH);
+  digitalWrite(GearDP, HIGH);
+
+  //Slight Delay for stuff
+  delay(200);
 
   //Setting up task for CAN bus stuffz, grabs data and stuff
   xTaskCreatePinnedToCore(
@@ -156,7 +168,7 @@ void setup() {
     "Gear Indicator Task",    //Name of the task
     10000,              //Stack size in words
     NULL,               //Task input parameter
-    1,                  //Priority of the task
+    2,                  //Priority of the task
     &Gear_Task,         //Task handle
     1                   //Core where the task should run
   );
@@ -197,6 +209,7 @@ void loop(){
 }
 
 void CAN_Task_Code(void *parameter) {
+  Serial.println("Running CAN Task");
 
   while(true){
     
@@ -224,36 +237,42 @@ void CAN_Task_Code(void *parameter) {
         byte rpmLow = rxFrame.data[0];
         byte rpmHigh = rxFrame.data[1];
         rpm = (rpmLow << 8) + rpmHigh;
-        Serial.println(rpm);
+        //Serial.println(rpm);
       }
     
       //Goolant CAN Frame
       if(rxFrame.identifier == 0x649){
         clt = rxFrame.data[0] - 40;
-        Serial.println(clt);
+        //Serial.println(clt);
       }
 
       //Gear position CAN Frame
       if(rxFrame.identifier == 0x64D){
         gear = rxFrame.data[6] & 0b00001111;
+        //Serial.println(gear);
       }
 
       //Pit Switch CAN Frame
       if(rxFrame.identifier == 0x64E){
         pit = rxFrame.data[3] & 0b01000000;
-        Serial.println(pit);
+        //Serial.println(pit);
       }
 
       //Neutral Switch CAN Frame
       if(rxFrame.identifier == 0x64E){
         neutral = rxFrame.data[3] & 0b00000001;
-        Serial.println(neutral);
+        //Serial.println(neutral);
       }
     }
+
+    //Delay to yield to other tasks
+    vTaskDelay(1);
   }
 }
     
 void Light_Task_Code(void *parameter) {
+  Serial.println("Running Light Task");
+
 
   while(true){
 
@@ -415,11 +434,13 @@ void Light_Task_Code(void *parameter) {
     //Set neopixels to set values
     //Delay to yield to other tasks
     pixels.show();
-    vTaskDelay(0.1);
+    vTaskDelay(1);
   }
 }
 
 void Button_Task_Code(void *parameter){
+  Serial.println("Running Button Task");
+
   while(true){
 
     //Grabs digital states of the 4 expansion buttons
@@ -429,13 +450,15 @@ void Button_Task_Code(void *parameter){
     button4State = digitalRead(Button4Pin);
 
     //Delay to yield to other tasks
-    vTaskDelay(0.1);
+    vTaskDelay(0.5);
   }
 }
 
 void Gear_Indicator_Code(void *parameter){
-  while(true){
+  
 
+  while(true){
+    
     unsigned long currentMillis = millis();
 
     //Neutral
@@ -443,21 +466,33 @@ void Gear_Indicator_Code(void *parameter){
       digitalWrite(GearA, LOW);
       digitalWrite(GearB, LOW);
       digitalWrite(GearC, LOW);
+      digitalWrite(GearD, HIGH);
       digitalWrite(GearE, LOW);
       digitalWrite(GearF, LOW);
+      digitalWrite(GearG, HIGH);
+      digitalWrite(GearDP, HIGH);
     }
     //First Gear
     else if(gear == 1){
+      digitalWrite(GearA, HIGH);
       digitalWrite(GearB, LOW);
       digitalWrite(GearC, LOW);
+      digitalWrite(GearD, HIGH);
+      digitalWrite(GearE, HIGH);
+      digitalWrite(GearF, HIGH);
+      digitalWrite(GearG, HIGH);
+      digitalWrite(GearDP, HIGH);
     }
     //Second Gear
     else if(gear == 2){
       digitalWrite(GearA, LOW);
       digitalWrite(GearB, LOW);
+      digitalWrite(GearC, HIGH);
       digitalWrite(GearD, LOW);
       digitalWrite(GearE, LOW);
       digitalWrite(GearG, LOW);
+      digitalWrite(GearDP, HIGH);
+
     }
     //Third Gear
     else if(gear == 3){
@@ -465,31 +500,43 @@ void Gear_Indicator_Code(void *parameter){
       digitalWrite(GearB, LOW);
       digitalWrite(GearC, LOW);
       digitalWrite(GearD, LOW);
+      digitalWrite(GearE, HIGH);
+      digitalWrite(GearF, HIGH);
       digitalWrite(GearG, LOW);
+      digitalWrite(GearDP, HIGH);
     }
     //Fourth Gear
     else if(gear == 4){
+      digitalWrite(GearA, HIGH);
       digitalWrite(GearB, LOW);
       digitalWrite(GearC, LOW);
+      digitalWrite(GearD, HIGH);
+      digitalWrite(GearE, HIGH);
       digitalWrite(GearF, LOW);
       digitalWrite(GearG, LOW);
+      digitalWrite(GearDP, HIGH);
     }
     //Fifth Gear
     else if(gear == 5){
       digitalWrite(GearA, LOW);
+      digitalWrite(GearB, HIGH);
       digitalWrite(GearC, LOW);
       digitalWrite(GearD, LOW);
+      digitalWrite(GearE, HIGH);
       digitalWrite(GearF, LOW);
       digitalWrite(GearG, LOW);
+      digitalWrite(GearDP, HIGH);
     }
     //Sixth Gear
     else if(gear == 6){
       digitalWrite(GearA, LOW);
+      digitalWrite(GearB, HIGH);
       digitalWrite(GearC, LOW);
       digitalWrite(GearD, LOW);
       digitalWrite(GearE, LOW);
       digitalWrite(GearF, LOW);
       digitalWrite(GearG, LOW);
+      digitalWrite(GearDP, HIGH);
     }
 
     //If no known gears are seen, display an E with the DP
@@ -507,6 +554,8 @@ void Gear_Indicator_Code(void *parameter){
       //Display the E and DP
       else if(currentMillis - gear14Timer >= gearIgnoreMillis){    
         digitalWrite(GearA, LOW);
+        digitalWrite(GearB, HIGH);
+        digitalWrite(GearC, HIGH);
         digitalWrite(GearD, LOW);
         digitalWrite(GearE, LOW);
         digitalWrite(GearF, LOW);
@@ -519,8 +568,9 @@ void Gear_Indicator_Code(void *parameter){
       gear14Timer = 0;
     }
 
+    //Serial.println(gear);
     //Delay to yield to other tasks
-    vTaskDelay(0.1);
+    vTaskDelay(1);
   }
 }
 
