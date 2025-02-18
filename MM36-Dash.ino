@@ -95,6 +95,7 @@ void setup() {
   //Sets gear position to 14 prior to connection with Motec
   clt = -69;
   gear = 14;
+  rpm = 8000;
 
   //Sets StatusLED pin to output
   pinMode(StatusLED, OUTPUT);
@@ -195,7 +196,8 @@ void setup() {
       pixels.setPixelColor(8, pixels.Color(0,0,0));
       pixels.setPixelColor(0, pixels.Color(0,0,0));
       pixels.show();
-  } else {
+  } 
+  else {
       Serial.println("CAN bus failed!");
       digitalWrite(StatusLED, LOW);
   }
@@ -311,58 +313,64 @@ void Light_Task_Code(void *parameter) {
 
       if(rpm >= shiftRpm1 && rpm < flashingRPM){
         pixels.setPixelColor(1, pixels.Color(0,255,0));
+        pixels.setPixelColor(7, pixels.Color(0,255,0));
       }
       else if(rpm <= shiftRpm1){
         pixels.setPixelColor(1, pixels.Color(0,0,0));
+        pixels.setPixelColor(7, pixels.Color(0,0,0));
       }
 
       //Second Light
-      if(rpm >= shiftRpm2 && rpm < flashingRPM){
-        pixels.setPixelColor(2, pixels.Color(0,255,0));
+      if(rpm >= shiftRpm3 && rpm < flashingRPM){
+        pixels.setPixelColor(2, pixels.Color(255,255,0));
+        pixels.setPixelColor(6, pixels.Color(255,255,0));
       }
-      else if(rpm <= shiftRpm2){
+      else if(rpm <= shiftRpm3){
         pixels.setPixelColor(2, pixels.Color(0,0,0));
+        pixels.setPixelColor(6, pixels.Color(0,0,0));
       }
 
       //Third Light
-      if(rpm >= shiftRpm3 && rpm < flashingRPM){
-        pixels.setPixelColor(3, pixels.Color(0,255,0));
+      if(rpm >= shiftRpm5 && rpm < flashingRPM){
+        pixels.setPixelColor(3, pixels.Color(255,0,0));
+        pixels.setPixelColor(5, pixels.Color(255,0,0));
       }
-      else if(rpm <= shiftRpm3){
+      else if(rpm <= shiftRpm5){
+        pixels.setPixelColor(3, pixels.Color(0,0,0));
         pixels.setPixelColor(3, pixels.Color(0,0,0));
       }
 
       //Fourth Light
-      if(rpm >= shiftRpm4 && rpm < flashingRPM){
-        pixels.setPixelColor(4, pixels.Color(255,255,0));
+      if(rpm >= shiftRpm7 && rpm < flashingRPM){
+        pixels.setPixelColor(4, pixels.Color(255,0,0));
       }
-      else if(rpm <= shiftRpm4){
+      else if(rpm <= shiftRpm7){
         pixels.setPixelColor(4, pixels.Color(0,0,0));
       }
 
       //Fifth Light
-      if(rpm >= shiftRpm5 && rpm < flashingRPM){
-        pixels.setPixelColor(5, pixels.Color(255,255,0));
-      }
-      else if(rpm <= shiftRpm5){
-        pixels.setPixelColor(5, pixels.Color(0,0,0));
-      }
+      // if(rpm >= shiftRpm5 && rpm < flashingRPM){
+      //   pixels.setPixelColor(5, pixels.Color(255,255,0));
+      // }
+      // else if(rpm <= shiftRpm5){
+      //   pixels.setPixelColor(5, pixels.Color(0,0,0));
+      // }
 
-      //Sixth Light
-      if(rpm >= shiftRpm6 && rpm < flashingRPM){
-        pixels.setPixelColor(6, pixels.Color(255,0,0));
-      }
-      else if(rpm <= shiftRpm6){
-        pixels.setPixelColor(6, pixels.Color(0,0,0));
-      }
+      // //Sixth Light
+      // if(rpm >= shiftRpm6 && rpm < flashingRPM){
+      //   pixels.setPixelColor(6, pixels.Color(255,0,0));
+      // }
+      // else if(rpm <= shiftRpm6){
+      //   pixels.setPixelColor(6, pixels.Color(0,0,0));
+      // }
 
-      //Seventh Light
-      if(rpm >= shiftRpm7 && rpm < flashingRPM){
-        pixels.setPixelColor(7, pixels.Color(255,0,0));
-      }
-      else if(rpm <= shiftRpm7){
-        pixels.setPixelColor(7, pixels.Color(0,0,0));
-      }
+      // //Seventh Light
+      // if(rpm >= shiftRpm7 && rpm < flashingRPM){
+      //   pixels.setPixelColor(7, pixels.Color(255,0,0));
+      // }
+      // else if(rpm <= shiftRpm7){
+      //   pixels.setPixelColor(7, pixels.Color(0,0,0));
+      // }
 
       //Flashing RPM Light Stuffz
       //Similar to flashing coolant light
