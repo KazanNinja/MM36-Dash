@@ -162,7 +162,7 @@ void setup() {
 }
 
 void loop() {
-  Serial.println("Running CAN Task");
+  //Serial.println("Running CAN Task");
 
   //Sets StatusLED off until CAN talk begins
   digitalWrite(StatusLED, LOW);
@@ -175,11 +175,11 @@ void loop() {
   //CAN TX-ing, sends dash button states
   if (currentStamp - lastStamp > 50) {
     lastStamp = currentStamp;
-    SendButtonCAN();
+    //SendButtonCAN();
   }
 
   //Checks if there are any frames to read
-  if (ESP32Can.readFrame(rxFrame, 1000)) {
+  if (ESP32Can.readFrame(rxFrame, 10)) {
 
     //Turns statusLED on during rx'ing
     digitalWrite(StatusLED, HIGH);
@@ -206,8 +206,8 @@ void loop() {
 
     //Pit Switch CAN Frame
     if (rxFrame.identifier == 0x64E) {
-      pit = rxFrame.data[3] & 0b01000000;
-      //Serial.println(pit);
+      pit = rxFrame.data[3];// & 0b00000010;
+      Serial.println(pit);
     }
 
     //Neutral Switch CAN Frame
@@ -217,7 +217,7 @@ void loop() {
     }
   }
 
-  Serial.println("Running Button Task");
+  //Serial.println("Running Button Task");
 
   //Grabs digital states of the 4 expansion buttons
   button1State = digitalRead(Button1Pin);
@@ -225,7 +225,7 @@ void loop() {
   button3State = digitalRead(Button3Pin);
   button4State = digitalRead(Button4Pin);
 
-  Serial.println("Running Light Task");
+  //Serial.println("Running Light Task");
 
   //Coolant lighting Neopixel
   //First three "simple" coolant states
@@ -485,6 +485,8 @@ void loop() {
 
   //Set neopixels to set values
   pixels.show();
+  Serial.println("1");
+  //delay(0.5);
 }
 
 //CAN Sending stuff for the dash buttons
