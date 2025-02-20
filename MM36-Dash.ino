@@ -53,7 +53,7 @@ int button4State;
 int clt;
 
 //Defines shfit light rpm switching points
-int shiftRpm1 = 9500;
+int shiftRpm1 = 9000;
 int shiftRpm2 = 10000;
 int shiftRpm3 = 10500;
 int shiftRpm4 = 11000;
@@ -257,7 +257,7 @@ void CAN_Task_Code(void *parameter) {
       //Pit Switch CAN Frame
       if(rxFrame.identifier == 0x64E){
         pit = rxFrame.data[3] & 0b01000000;
-        Serial.println(pit);
+        //Serial.println(pit);
       }
 
       //Neutral Switch CAN Frame
@@ -309,6 +309,9 @@ void Light_Task_Code(void *parameter) {
     //Shift lights When Pit Switch is Off
     //First Light
     if(pit == 0){
+
+      //Turn all shift lights off if below threasholds
+      //Was having issues with PIT lights sticking when switch was turned off
       if(rpm < shiftRpm1 && rpm < flashingRPM){
         pixels.setPixelColor(1, pixels.Color(0,0,0));
         pixels.setPixelColor(2, pixels.Color(0,0,0));
@@ -346,7 +349,7 @@ void Light_Task_Code(void *parameter) {
       }
       else if(rpm <= shiftRpm5){
         pixels.setPixelColor(3, pixels.Color(0,0,0));
-        pixels.setPixelColor(3, pixels.Color(0,0,0));
+        pixels.setPixelColor(5, pixels.Color(0,0,0));
       }
 
       //Fourth Light
