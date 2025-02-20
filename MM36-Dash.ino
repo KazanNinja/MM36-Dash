@@ -95,7 +95,6 @@ void setup() {
   //Sets gear position to 14 prior to connection with Motec
   clt = -69;
   gear = 14;
-  rpm = 8000;
 
   //Sets StatusLED pin to output
   pinMode(StatusLED, OUTPUT);
@@ -134,18 +133,18 @@ void setup() {
   xTaskCreatePinnedToCore(
     CAN_Task_Code, //Function to implement the task
     "CAN Task",    //Name of the task
-    10000,         //Stack size in words
+    4096,         //Stack size in words
     NULL,          //Task input parameter
     0,             //Priority of the task
     &CAN_Task,     //Task handle
-    0              //Core where the task should run
+    1              //Core where the task should run
   );            
 
   //Settings up task for Lighting 
   xTaskCreatePinnedToCore(
     Light_Task_Code, //Function to implement the task
     "Light Task",    //Name of the task
-    10000,              //Stack size in words
+    4096,              //Stack size in words
     NULL,               //Task input parameter
     1,                  //Priority of the task
     &Neopixel_Task,     //Task handle
@@ -153,21 +152,21 @@ void setup() {
   );
 
   //Settings up task for dash buttons 
-  xTaskCreatePinnedToCore(
+  xTaskCreate(
     Button_Task_Code,   //Function to implement the task
     "Button Task",      //Name of the task
-    10000,              //Stack size in words
+    2048,              //Stack size in words
     NULL,               //Task input parameter
-    1,                  //Priority of the task
-    &Button_Task,       //Task handle
-    1                   //Core where the task should run
+    4,                  //Priority of the task
+    &Button_Task       //Task handle
+    //1,                   //Core where the task should run
   );
 
   //Settings up task for gear indicator stuff
   xTaskCreatePinnedToCore(
     Gear_Indicator_Code, //Function to implement the task
     "Gear Indicator Task",    //Name of the task
-    10000,              //Stack size in words
+    4096,              //Stack size in words
     NULL,               //Task input parameter
     2,                  //Priority of the task
     &Gear_Task,         //Task handle
@@ -176,8 +175,8 @@ void setup() {
 
   //CAN setup
   ESP32Can.setPins(CAN_TX, CAN_RX);
-  ESP32Can.setRxQueueSize(5);
-  ESP32Can.setTxQueueSize(5);
+  ESP32Can.setRxQueueSize(64);
+  ESP32Can.setTxQueueSize(64);
   ESP32Can.setSpeed(ESP32Can.convertSpeed(1000));
 
   // You can also just use .begin()..
@@ -207,6 +206,7 @@ void setup() {
 }
 
 void loop(){
+  vTaskDelete(NULL);
   //Do nothing :)
 }
 
@@ -214,7 +214,7 @@ void CAN_Task_Code(void *parameter) {
   Serial.println("Running CAN Task");
 
   while(true){
-    
+
     //Sets StatusLED off until CAN talk begins
     digitalWrite(StatusLED, LOW);
 
@@ -257,7 +257,7 @@ void CAN_Task_Code(void *parameter) {
       //Pit Switch CAN Frame
       if(rxFrame.identifier == 0x64E){
         pit = rxFrame.data[3] & 0b01000000;
-        //Serial.println(pit);
+        Serial.println(pit);
       }
 
       //Neutral Switch CAN Frame
@@ -268,13 +268,12 @@ void CAN_Task_Code(void *parameter) {
     }
 
     //Delay to yield to other tasks
-    vTaskDelay(1);
+    //vTaskDelay(1);
   }
 }
     
 void Light_Task_Code(void *parameter) {
-  Serial.println("Running Light Task");
-
+  //Serial.println("Running Light Task");
 
   while(true){
 
@@ -287,7 +286,7 @@ void Light_Task_Code(void *parameter) {
       pixels.setPixelColor(0, pixels.Color(0,0,255));
     }
     else if(clt >= coolantCold && clt <= coolantHot){
-      pixels.setPixelColor(0, pixels.Color(0,0,0));
+      pixels.setPixelColor(0, pixels.Color(0,64,0));
     }
     else if(clt > coolantHot && clt < coolantFlash){
       pixels.setPixelColor(0, pixels.Color(255,0,0));
@@ -310,7 +309,17 @@ void Light_Task_Code(void *parameter) {
     //Shift lights When Pit Switch is Off
     //First Light
     if(pit == 0){
+      if(rpm < shiftRpm1 && rpm < flashingRPM){
+        pixels.setPixelColor(1, pixels.Color(0,0,0));
+        pixels.setPixelColor(2, pixels.Color(0,0,0));
+        pixels.setPixelColor(3, pixels.Color(0,0,0));
+        pixels.setPixelColor(4, pixels.Color(0,0,0));
+        pixels.setPixelColor(5, pixels.Color(0,0,0));
+        pixels.setPixelColor(6, pixels.Color(0,0,0));
+        pixels.setPixelColor(7, pixels.Color(0,0,0));
+      }
 
+      //First Light
       if(rpm >= shiftRpm1 && rpm < flashingRPM){
         pixels.setPixelColor(1, pixels.Color(0,255,0));
         pixels.setPixelColor(7, pixels.Color(0,255,0));
@@ -447,7 +456,7 @@ void Light_Task_Code(void *parameter) {
 }
 
 void Button_Task_Code(void *parameter){
-  Serial.println("Running Button Task");
+  //Serial.println("Running Button Task");
 
   while(true){
 
@@ -458,13 +467,12 @@ void Button_Task_Code(void *parameter){
     button4State = digitalRead(Button4Pin);
 
     //Delay to yield to other tasks
-    vTaskDelay(0.5);
+    vTaskDelay(50);
   }
 }
 
 void Gear_Indicator_Code(void *parameter){
   
-
   while(true){
     
     unsigned long currentMillis = millis();
@@ -578,7 +586,7 @@ void Gear_Indicator_Code(void *parameter){
 
     //Serial.println(gear);
     //Delay to yield to other tasks
-    vTaskDelay(1);
+    vTaskDelay(2);
   }
 }
 
