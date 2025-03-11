@@ -96,6 +96,8 @@ void setup() {
   clt = -69;
   gear = 14;
 
+  rpm = 8000;
+  gear = 5;
   //Sets StatusLED pin to output
   pinMode(StatusLED, OUTPUT);
 
@@ -211,7 +213,11 @@ void loop(){
 }
 
 void CAN_Task_Code(void *parameter) {
-  Serial.println("Running CAN Task");
+  TickType_t xLastWakeTime;
+  const TickType_t xFrequency = 20;
+
+  // Initialise the xLastWakeTime variable with the current time.
+  xLastWakeTime = xTaskGetTickCount();
 
   while(true){
 
@@ -267,13 +273,17 @@ void CAN_Task_Code(void *parameter) {
       }
     }
 
+    vTaskDelayUntil(&xLastWakeTime, xFrequency);
     //Delay to yield to other tasks
-    //vTaskDelay(1);
   }
 }
     
 void Light_Task_Code(void *parameter) {
-  //Serial.println("Running Light Task");
+  TickType_t xLastWakeTime;
+  const TickType_t xFrequency = 20;
+
+  // Initialise the xLastWakeTime variable with the current time.
+  xLastWakeTime = xTaskGetTickCount();
 
   while(true){
 
@@ -454,7 +464,21 @@ void Light_Task_Code(void *parameter) {
     //Set neopixels to set values
     //Delay to yield to other tasks
     pixels.show();
-    vTaskDelay(1);
+
+    if(rpm <= 15000){
+      rpm = rpm+4;
+      Serial.println(rpm);
+      if(rpm == 15000){
+        gear++;
+        if(gear == 7){
+          gear =1;
+        }
+      }
+    }
+    else{
+      rpm = 8000;
+    }
+    vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }
 }
 
@@ -589,7 +613,7 @@ void Gear_Indicator_Code(void *parameter){
 
     //Serial.println(gear);
     //Delay to yield to other tasks
-    vTaskDelay(2);
+    vTaskDelay(5);
   }
 }
 
